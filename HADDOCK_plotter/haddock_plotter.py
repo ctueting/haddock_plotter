@@ -318,7 +318,7 @@ def plot_single_data(data, include_haddock_score = False, plot_single = False, p
     
     return 
 
-def haddock_plotter(paths, plot_type="single", min_cluster_size=0.1, include_haddock_score=False,
+def plotter(paths, plot_type="single", min_cluster_size=0.1, include_haddock_score=False,
                     plot_single=False, modus="top", palette="husl", figsize=None,
                     close=False, legend_labels=None, ncol=1, show_n=True,
                     save=False, filename=None, filetype="png", dpi=100):
