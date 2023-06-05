@@ -1,2 +1,1 @@
-from . import haddock_plotter
-
+from .haddock_plotter import plotter
