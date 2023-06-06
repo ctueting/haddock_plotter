@@ -102,6 +102,7 @@ parsed_data = hp.plotter(p0, plot_single=True, min_cluster_size=0.05, **saving)
 ```
 
 Plot:
+
 ![Single subplots](examples/single_subplots_00.png)
 
 For comparison of multiple dockings, define all paths in a list:
