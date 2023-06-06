@@ -21,6 +21,37 @@ This script parses data from HADDOCK result folders and plots the information in
 
 ## Usage
 
+### Installation
+
+To install the HADDOCK_plotter package, you need to clone the repository, navigate to the cloned directory, and then install the package using pip. 
+
+Make sure you are using the correct Python environment if you're working within a specific environment (e.g., a Jupyter notebook environment).
+
+Follow the steps below:
+
+1. First, clone the repository using git:
+
+```bash
+git clone https://github.com/ctueting/haddock_plotter.git
+```
+
+2. Navigate to the cloned repository:
+
+```bash
+cd haddock_plotter
+```
+
+3. Install the package:
+
+```bash
+pip install .
+```
+
+You're all set! You should now be able to import and use the `HADDOCK_plotter` package in your Python projects.
+
+Remember to replace `pip` with the appropriate command if you're using a different package manager, or if your Python installation requires it (e.g., `pip3` or `python3 -m pip`).
+
+
 ### Import
 
 Firstly, import the script:
