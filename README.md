@@ -61,6 +61,43 @@ The parameters are as follows:
 - `legend_args`: Dictionary of arguments to be passed to the legend. If None, uses default values: `{"frameon": False, "loc": "upper left", "ncol": 1}`.
 - `rcParams`: Dictionary of rc parameters to be updated before plotting. Defaults to None.
 
+For the legend handles, the subplot (either the boxplot or the stripplot), with the most distinct colors, will be used.
+
+## Customizable Parameters
+- `boxplot_args`:
+    Parameters for the seaborn.boxplot function. For a detailed description of these parameters, please check:
+    [seaborn.boxplot documentation](https://seaborn.pydata.org/generated/seaborn.boxplot.html)
+    
+- `stripplot_args`:
+    Parameters for the seaborn.stripplot function. For a detailed description of these parameters, please check:
+    [seaborn.stripplot documentation](https://seaborn.pydata.org/generated/seaborn.stripplot.html)
+    
+- `legend_args`:
+    Parameters for the matplotlib.legend function. For a detailed description of these parameters, please check:
+    [matplotlib.legend documentation](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.legend.html)   
+    
+- `rcParams`:
+    Matplotlib parameters for the styling of the figure. For a detailed description, please see:
+    [matplotlib rcParams documentation](https://matplotlib.org/stable/tutorials/introductory/customizing.html#customizing-with-dynamic-rc-settings)
+    
+    By default, the following changes are applied in the code:
+    ```python
+    # figure settings
+    plt.rcParams['pdf.fonttype'] = 42 # to make the file editable by Illustrator
+    font = {'size'   : 12}
+    plt.rc('font', **font)
+    plt.rcParams['font.sans-serif'] = "Arial"
+    plt.rcParams['font.family'] = "sans-serif"
+    plt.rcParams['mathtext.it'] = 'Arial:italic'
+    plt.rcParams['mathtext.bf'] = 'Arial:bold'
+    plt.rcParams['mathtext.rm'] = 'Arial'
+    plt.rcParams['mathtext.fontset'] = 'custom'
+    plt.rcParams['mathtext.default'] = 'regular'
+    plt.rcParams['font.serif'] = 'Arial'
+    plt.rcParams['font.family'] = 'Arial'
+    ```
+
+    
 ### Examples
 Define the path(s) to the HADDOCK result folder:
 ```python
@@ -133,6 +170,8 @@ parsed_data = hp.plotter(p0, plot_type="multi", modus="all", min_cluster_size=0.
 Plot:
 
 ![Multi top](examples/multi_all.png)
+
+
 
 ## Contribution
 
