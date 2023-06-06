@@ -75,6 +75,7 @@ parsed_data = hp.plotter(p0, min_cluster_size=0.05, **saving)
 ```
 
 Plot:
+
 ![Single unmodified](examples/single_unmodified_00.png)
 
 Plot the same, but heavily modify the parameters:
@@ -93,6 +94,7 @@ parsed_data = hp.plotter(p0, min_cluster_size=0.05, show_n = False, legend_label
 ```
 
 Plot:
+
 ![Single modified](examples/single_modified_00.png)
 
 Plot the same data, but create a subplot for each Cluster:
@@ -119,6 +121,7 @@ parsed_data = hp.plotter(p0, plot_type="multi", min_cluster_size=0.05, **saving)
 ```
 
 Plot:
+
 ![Multi top](examples/multi_top.png)
 
 Plot the all cluster of all dockings against each other in a single plot:
@@ -128,6 +131,7 @@ parsed_data = hp.plotter(p0, plot_type="multi", modus="all", min_cluster_size=0.
 ```
 
 Plot:
+
 ![Multi top](examples/multi_all.png)
 
 ## Contribution
