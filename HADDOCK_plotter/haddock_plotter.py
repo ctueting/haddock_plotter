@@ -1,12 +1,30 @@
 # import the required modules
 import sys
 import os
+import requests
+import tarfile
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import math
 import statistics
+from matplotlib.colors import rgb2hex
+
+# figure settings
+plt.rcParams['pdf.fonttype'] = 42
+font = {'size'   : 12}
+plt.rc('font', **font)
+plt.rcParams['font.sans-serif'] = "Arial"
+plt.rcParams['font.family'] = "sans-serif"
+plt.rcParams['mathtext.it'] = 'Arial:italic'
+plt.rcParams['mathtext.bf'] = 'Arial:bold'
+plt.rcParams['mathtext.rm'] = 'Arial'
+plt.rcParams['mathtext.fontset'] = 'custom'
+plt.rcParams['mathtext.default'] = 'regular'
+plt.rcParams['font.serif'] = 'Arial'
+plt.rcParams['font.family'] = 'Arial'
 
 
 # parse the input data
@@ -109,16 +127,7 @@ def beautify_plots(axs, ticks):
     
     return legend
 
-def parse_palette(palette):
-
-    if isinstance(palette, str):
-        return palette
-    
-    # Define your own color palette
-    return sns.color_palette(palette)
-
-
-def plot_datapoints(data, axs, palette, hue):
+def plot_datapoints(data, axs, hue, boxplot_args, stripplot_args):
     
     if isinstance(hue, list):
         # create a new hue parameter
@@ -127,37 +136,48 @@ def plot_datapoints(data, axs, palette, hue):
         data["hue"] = data[hue]
     
     
-    palette = parse_palette(palette)
-    
     ax0, ax1 = axs
     # plot vdw, es, ds
-    sns.boxplot(data = data.loc[data.variable != "BSA"], x = "variable", y = "value", hue = "hue", ax = ax0, showfliers=False, color = "w", notch=True)
-    sns.stripplot(data = data.loc[data.variable != "BSA"], x = "variable", y = "value", hue = "hue", ax = ax0, s=4, palette=palette, alpha = 0.25, jitter=True, dodge = True)
+    sns.boxplot(data = data.loc[data.variable != "BSA"], x = "variable", y = "value", hue = "hue", ax = ax0, **boxplot_args)
+    sns.stripplot(data = data.loc[data.variable != "BSA"], x = "variable", y = "value", hue = "hue", ax = ax0,  **stripplot_args)
 
     # plot bsa
-    sns.boxplot(data = data.loc[data.variable == "BSA"], x = "variable", y = "value", hue = "hue", ax = ax1 , showfliers=False, color = "w", notch=True)
-    sns.stripplot(data = data.loc[data.variable == "BSA"], x = "variable", y = "value", hue = "hue", ax = ax1 , s=4, palette=palette, alpha = 0.25, jitter=True, dodge = True)
+    sns.boxplot(data = data.loc[data.variable == "BSA"], x = "variable", y = "value", hue = "hue", ax = ax1 ,  **boxplot_args)
+    sns.stripplot(data = data.loc[data.variable == "BSA"], x = "variable", y = "value", hue = "hue", ax = ax1 , **stripplot_args)
     
     return axs
 
-def make_plot(data, axs, palette, hue, ticks, legend_labels, show_n, ncol):
+def make_plot(data, axs,  hue, ticks, legend_labels, show_n, boxplot_args, stripplot_args, legend_args):
+    
     # plot the data
-    axs = plot_datapoints(data, axs, palette = palette, hue = hue)
+    axs = plot_datapoints(data, axs, hue = hue, boxplot_args = boxplot_args, stripplot_args = stripplot_args)
 
     # beautify
     legend = beautify_plots(axs, ticks)
 
     # make the legend
-    make_legend(axs, data, legend, legend_labels, show_n, ncol) 
+    make_legend(axs, data, legend, legend_labels, show_n, legend_args) 
     return
     
-def make_legend(axs, data, legend, legend_labels, show_n, ncol):
+def make_legend(axs, data, legend, legend_labels, show_n, legend_args):
     # get the sample size(s)
     #n_all_clusters = t.loc[t.variable == "BSA", "cluster"].value_counts().to_dict()
 
     # optimize the legend
     handles = legend[0]
-    handles = handles[len(handles) // 2:]
+    
+    handles0 = handles[:len(handles) // 2]
+    handles1 = handles[len(handles) // 2:]
+    
+    l_colors0 = len(set([rgb2hex(np.around(np.array(h.get_fc()), decimals=0)) for h in handles0]))
+    l_colors1 = len(set([rgb2hex(np.around(np.array(h.get_fc()), decimals=0)) for h in handles1]))
+    
+    if l_colors1 >= l_colors0:
+        handles = handles1
+    else:
+        handles = handles0
+    
+    # handles = handles[len(handles) // 2:]
     
     labels = legend[1]
     labels = labels[len(labels) // 2:]
@@ -214,11 +234,11 @@ def make_legend(axs, data, legend, legend_labels, show_n, ncol):
     y_max = axs[0].get_ylim()[1]
     axs[0].set_ylim(y_max,y_min*1.2)
     
-    axs[0].legend(handles, new_labels, frameon = False, loc = "upper left", ncol = ncol)
+    axs[0].legend(handles, new_labels, **legend_args)
 
     return 
 
-def plot_all(data,  modus = "top", include_haddock_score = False, palette = "husl", figsize = None, close = False, legend_labels = None, ncol = 1, show_n = True, save = False, filename = None, filetype = "png", dpi = "100"):
+def plot_all(data,  modus = "top", include_haddock_score = False, figsize = None, legend_labels = None, show_n = True, save = False, filename = None, filetype = "png", dpi = "100", boxplot_args = {}, stripplot_args = {}, legend_args = {}, rcParams = {}):
     
     if modus not in ["top", "all"]:
         print("Error. Unkown modi. Allowed ”all” or ”top”")
@@ -245,29 +265,30 @@ def plot_all(data,  modus = "top", include_haddock_score = False, palette = "hus
     
     if figsize is None:
         figsize = (5 * data.groupby(['docking', 'cluster']).ngroups * 0.7 ,5)
-    
-    fig, axs = plt.subplots(1,2, figsize= figsize,  gridspec_kw={'width_ratios': [3, 1]})
-    
-    # plot the data
-    hue = ['docking', 'cluster']
-    make_plot(data, axs, palette, hue, ticks, legend_labels, show_n, ncol)  
-    
-    # finalize
-    sns.despine()
-    plt.tight_layout()
-    
-    if save:
-        if filename is None:
-            filename = "image"
+    with plt.rc_context(rcParams):
+        fig, axs = plt.subplots(1,2, figsize= figsize,  gridspec_kw={'width_ratios': [3, 1]})
         
-        plt.savefig(filename + "." + filetype, dpi = dpi)
+        # plot the data
+        hue = ['docking', 'cluster']
+        make_plot(data, axs, hue, ticks, legend_labels, show_n, boxplot_args, stripplot_args, legend_args)  
         
-    if close:
-        plt.close()
+        # finalize
+        sns.despine()
+        plt.tight_layout()
+        
+        
+        
+        if save:
+            if filename is None:
+                filename = "image"
+            
+            plt.savefig(filename + "." + filetype, dpi = dpi)
+            
+        plt.show()
     
     return 
 
-def plot_single_data(data, include_haddock_score = False, plot_single = False, palette = "husl", figsize = None, close = False, legend_labels = None, ncol = 1, show_n = True, save = False, filename = None, filetype = "png", dpi = "100"):
+def plot_single_data(data, include_haddock_score = False, plot_single = False, figsize = None, legend_labels = None, show_n = True, save = False, filename = None, filetype = "png", dpi = 100, boxplot_args = {}, stripplot_args = {}, legend_args = {}, rcParams = {}):
     
     cols, ticks = cols_and_ticks(include_haddock_score)
     
@@ -276,72 +297,93 @@ def plot_single_data(data, include_haddock_score = False, plot_single = False, p
     if plot_single:
         if figsize is None:
             figsize = (5 * 0.7, 5 * len(data.cluster.unique()))
-        
-        fig, axsn = plt.subplots(len(data.cluster.unique()),2, figsize= figsize,  gridspec_kw={'width_ratios': [3, 1]})
-        
-        palette = ["black"]
-        
-        for k, cluster in enumerate(data.cluster.unique()):
-            axs = axsn[k]
-            single_data = data.loc[data.cluster == cluster].copy()
-            if legend_labels is not None:
-                single_legend_label = [legend_labels[k]]
-            else:
-                single_legend_label = None
+        with plt.rc_context(rcParams):
+            fig, axsn = plt.subplots(len(data.cluster.unique()),2, figsize= figsize,  gridspec_kw={'width_ratios': [3, 1]})
+                      
+            for k, cluster in enumerate(data.cluster.unique()):
+                
+                axs = axsn[k]
+                single_data = data.loc[data.cluster == cluster].copy()
+                if legend_labels is not None:
+                    single_legend_label = [legend_labels[k]]
+                else:
+                    single_legend_label = None
 
-            # plot the data
-            hue = "cluster"
-            make_plot(single_data, axs, palette, hue, ticks, single_legend_label, show_n, ncol)
+                # plot the data
+                hue = "cluster"
+                make_plot(single_data, axs, hue, ticks, single_legend_label, show_n, boxplot_args, stripplot_args, legend_args )
+                
+            sns.despine()
+            plt.tight_layout()
+            
+            if save:
+                if filename is None:
+                    filename = "image"
+                
+                plt.savefig(filename + "." + filetype, dpi = dpi)
+            
+            plt.show()
+            
     else:
         if figsize is None:
             figsize = (5 * len(data.cluster.unique()) * 0.7 ,5)
-
-        fig, axs = plt.subplots(1,2, figsize= figsize,  gridspec_kw={'width_ratios': [3, 1]})
-
-        # plot the data
-        hue = "cluster"
-        make_plot(data, axs, palette, hue, ticks, legend_labels, show_n, ncol)  
+        with plt.rc_context(rcParams):
+            fig, axs = plt.subplots(1,2, figsize= figsize,  gridspec_kw={'width_ratios': [3, 1]})
     
-    sns.despine()
-    plt.tight_layout()
-    
-    if save:
-        if filename is None:
-            filename = "image"
+            # plot the data
+            hue = "cluster"
+            make_plot(data, axs, hue, ticks, legend_labels, show_n, boxplot_args, stripplot_args, legend_args)  
         
-        plt.savefig(filename + "." + filetype, dpi = dpi)
-        
-    if close:
-        plt.close()
-    
-
-    
+            sns.despine()
+            plt.tight_layout()
+            
+            
+            
+            if save:
+                if filename is None:
+                    filename = "image"
+                  
+                plt.savefig(filename + "." + filetype, dpi = dpi)
+            plt.show()
+            
     return 
 
 def plotter(paths, plot_type="single", min_cluster_size=0.1, include_haddock_score=False,
-                    plot_single=False, modus="top", palette="husl", figsize=None,
-                    close=False, legend_labels=None, ncol=1, show_n=True,
-                    save=False, filename=None, filetype="png", dpi=100):
+                    plot_single=False, modus="top", figsize=None,
+                    legend_labels=None, show_n=True,
+                    save=False, filename=None, filetype="png", dpi=100,
+                    boxplot_args=None, stripplot_args=None, legend_args=None, rcParams={}):
     """
     Parses and plots data from HADDOCK result folders specified in 'paths'.
     
     Args:
         paths: List of paths to the HADDOCK result folders.
-        plot_type (str): Either "single" for individual plots per path or "multi" for all data in a single plot.
-        min_cluster_size (float): Minimum cluster size to be considered, in proportion of total models.
-        include_haddock_score (bool): If True, includes HADDOCK score in the plot.
-        plot_single (bool): If True and plot_type="single", each cluster gets its ownprint subpanel in the plot.
-        modus (str): Only applies for plot type "multi". "top" to only plot the largest clusters, "all" to plot all clusters.
-        palette (str or list): Seaborn palette name or a list of colors with the same length as plotted clusters.
-        figsize (tuple): Size of the figure in inches.
-        close (bool): If True, closes the figure after plotting (not recommended).
-        legend_labels (list): List of labels for the legend. Must be the same length as plotted clusters.
-        ncol (int): Number of columns in the legend.
-        show_n (bool): If True, shows the n value of each cluster.
-        save (bool): If True, saves the figure.
-        filename (str): The name of the file to save the figure. If None, defaults to 'image.png'.
-        filetype (str): The type of the file to save the figure.
-        dpi (int): The resolution of the saved image, in dots per inch.
+        plot_type (str, optional): Either "single" for individual plots per path or "multi" for all data in a single plot.
+                                  Defaults to "single".
+        min_cluster_size (float, optional): Minimum cluster size to be considered, in proportion of total models.
+                                            Defaults to 0.1.
+        include_haddock_score (bool, optional): If True, includes HADDOCK score in the plot. Defaults to False.
+        plot_single (bool, optional): If True and plot_type="single", each cluster gets its own subpanel in the plot.
+                                      Defaults to False.
+        modus (str, optional): Only applies for plot type "multi". "top" to only plot the largest clusters, "all" to plot all clusters.
+                               Defaults to "top".
+        palette (str or list, optional): Seaborn palette name or a list of colors with the same length as plotted clusters.
+                                         Defaults to "husl".
+        figsize (tuple, optional): Size of the figure in inches. Defaults to None.
+        legend_labels (list, optional): List of labels for the legend. Must be the same length as plotted clusters.
+                                        Defaults to None.
+        show_n (bool, optional): If True, shows the n value of each cluster. Defaults to True.
+        save (bool, optional): If True, saves the figure. Defaults to False.
+        filename (str, optional): The name of the file to save the figure. If None, defaults to 'image.png'.
+        filetype (str, optional): The type of the file to save the figure. Defaults to "png".
+        dpi (int, optional): The resolution of the saved image, in dots per inch. Defaults to 100.
+        boxplot_args (dict, optional): Dictionary of arguments to be passed to the seaborn boxplot function. 
+                                        If None, uses default values: {"showfliers" : False, "color" : "w", "notch" : True}.
+        stripplot_args (dict, optional): Dictionary of arguments to be passed to the seaborn stripplot function. 
+                                         If None, uses default values: {"s" : 4,  "alpha" : 0.25, "jitter" : True, "dodge" : True}.
+        legend_args (dict, optional): Dictionary of arguments to be passed to the legend. 
+                                      If None, uses default values: {"frameon" : False, "loc" : "upper left", "ncol" : 1}.
+        rcParams (dict, optional): Dictionary of rc parameters to be updated before plotting. Defaults to None.
 
     Returns:
         data: Parsed data from the HADDOCK result folders.
@@ -349,24 +391,76 @@ def plotter(paths, plot_type="single", min_cluster_size=0.1, include_haddock_sco
 
     # parse the data:
     data = parseDocking(paths, min_cluster_size=min_cluster_size)
+
+    # parse the plotting parameter
+    
+    #  default plotting parameter
+    default_boxplot_args = {"showfliers" : False, "color" : "w", "notch" : True}
+    default_stripplot_args = {"palette" : "husl", "s" : 4,  "alpha" : 0.25, "jitter" : True, "dodge" : True}
+    default_legend_args = {"frameon" : False, "loc" : "upper left", "ncol" : 1} 
+    
+    if plot_single:
+        default_stripplot_args.update({'palette' : 'dark:k'})
+    
+    
+    if boxplot_args is None:
+        boxplot_args = default_boxplot_args
+    else:
+        default_boxplot_args.update(boxplot_args)
+        boxplot_args = default_boxplot_args
+    
+    if stripplot_args is None:
+        stripplot_args = default_stripplot_args
+    else:
+        default_stripplot_args.update(stripplot_args)
+        stripplot_args = default_stripplot_args
+    
+    if legend_args is None:
+        legend_args = default_legend_args
+    else:
+        default_legend_args.update(legend_args)
+        legend_args = default_legend_args
     
     if plot_type == "single":
         
-        for path, parsed_data in data.items():
+        for idx, (path, parsed_data) in enumerate(data.items()):
             if save:
-                modified_filename = path + "_" + filename
+                modified_filename = filename + "_" + f"{idx:02d}"
             else:
                 modified_filename = filename
-                
-            plot_single_data(parsed_data, include_haddock_score=include_haddock_score, plot_single=plot_single, palette=palette, 
-                figsize=figsize, close=close, legend_labels=legend_labels, ncol=ncol, 
-                show_n=show_n, save=save, filename=modified_filename, filetype=filetype, dpi=dpi)
+                        
+            plot_single_data(parsed_data, include_haddock_score=include_haddock_score, plot_single=plot_single,  
+                figsize=figsize, legend_labels=legend_labels,  
+                show_n=show_n, save=save, filename=modified_filename, filetype=filetype, dpi=dpi,
+                boxplot_args=boxplot_args, stripplot_args=stripplot_args, legend_args=legend_args, rcParams=rcParams)
             
     elif plot_type == "multi":
-        plot_all(data,  modus=modus, include_haddock_score=include_haddock_score, palette=palette, 
-                 figsize=figsize, close=close, legend_labels=legend_labels, ncol=ncol, 
-                 show_n=show_n, save=save, filename=filename, filetype=filetype, dpi=dpi)
+        plot_all(data,  modus=modus, include_haddock_score=include_haddock_score, 
+                 figsize=figsize, legend_labels=legend_labels,  
+                 show_n=show_n, save=save, filename=filename, filetype=filetype, dpi=dpi,
+                 boxplot_args=boxplot_args, stripplot_args=stripplot_args, legend_args=legend_args, rcParams=rcParams)
     else:
         raise ValueError(f"Unknown plot_type: {plot_type}")
-        
     return data
+
+
+def download_results(url, download_location=".", delete=True):
+    archive = url + ".tgz"
+
+    # Download the archive
+    response = requests.get(archive, stream=True)
+    download_path = os.path.join(download_location, os.path.basename(archive))
+    with open(download_path, 'wb') as f:
+        f.write(response.content)
+
+    # Unpack the archive
+    try:
+        with tarfile.open(download_path, 'r:gz') as tar:
+            tar.extractall(path=download_location)
+    except tarfile.ReadError:
+        with tarfile.open(download_path, 'r:') as tar:
+            tar.extractall(path=download_location)
+
+    # If delete is True, remove the tgz file
+    if delete:
+        os.remove(download_path)
